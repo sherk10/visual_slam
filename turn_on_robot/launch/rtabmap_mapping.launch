@@ -1,0 +1,50 @@
+<launch>
+
+  <param name="use_sim_time" value="true"/>
+
+  <include file="$(find turn_on_robot)/launch/display_in_canteen.launch" />
+
+  <!-- 启动rtabmap_ros-->
+  <group ns="rtabmap">
+
+    <node pkg="nodelet" type="nodelet" name="rgbd_sync" args="standalone rtabmap_sync/rgbd_sync" output="screen">
+      <remap from="rgb/image"       to="/camera_link/color/image_raw"/>
+      <remap from="depth/image"     to="/camera_link/depth/image_raw"/>
+      <remap from="rgb/camera_info" to="/camera_link/color/camera_info"/>
+      <remap from="rgbd_image"      to="rgbd_image"/> <!-- output -->
+      
+      <!-- Should be true for not synchronized camera topics 
+           (e.g., false for kinectv2, zed, realsense, true for xtion, kinect360)-->
+      <param name="approx_sync"       value="true"/> 
+    </node>
+
+    <node name="rtabmap" pkg="rtabmap_slam" type="rtabmap" output="screen" args="--delete_db_on_start">
+          <param name="frame_id" type="string" value="base_link"/>
+
+          <param name="subscribe_depth" type="bool" value="false"/>
+          <param name="subscribe_rgbd" type="bool" value="true"/>
+
+          <remap from="odom" to="/odom"/>
+
+          <remap from="rgbd_image" to="rgbd_image"/>
+
+          <param name="queue_size" type="int" value="10"/>
+
+          <!-- RTAB-Map's parameters -->
+          <param name="RGBD/AngularUpdate"        type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate"         type="string" value="0.01"/>
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="false"/>
+
+
+          <param name="camera_frame_id" type="string" value="camera_optical_frame"/> <!-- 相机光学帧 -->
+          <param name="odom_frame_id" type="string" value="odom"/>            <!-- 里程计帧 -->
+          <param name="map_frame_id" type="string" value="map"/>              <!-- 地图帧 -->
+    </node>
+  </group>
+
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find turn_on_robot)/rviz/rtabmap_mapping.rviz" />
+
+  <node pkg="turn_on_robot" type="control_robot" name="control_robot" />
+
+</launch>

@@ -1,0 +1,13 @@
+<launch>
+
+    <arg name="gui" default="true"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro '$(find turn_on_robot)/urdf/dining_car.xacro'"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find turn_on_robot)/rviz/show_robot.rviz"/>
+
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+    <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" if="$(arg gui)"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+    
+
+</launch>

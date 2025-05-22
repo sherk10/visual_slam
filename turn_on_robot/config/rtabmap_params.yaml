@@ -1,0 +1,14 @@
+RTAB-Map:
+  rtabmap:
+    frame_id: "base_link"
+    odom_frame_id: "odom"
+    subscribe_depth: true
+    subscribe_rgb: true
+    subscribe_odom_info: true
+    approx_sync: true
+    queue_size: 30
+    publish_map: true
+    publish_point_cloud_map: true
+    # 回环检测参数
+    # 例如回环的最小距离、最大时间间隔等可根据实际场景调整
+    # 具体参数见官方wiki

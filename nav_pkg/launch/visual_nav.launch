@@ -1,0 +1,81 @@
+<launch>
+
+  <param name="use_sim_time" value="true"/>
+
+  <include file="$(find turn_on_robot)/launch/display_in_canteen.launch" />
+
+
+  <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan" output="screen">
+    <!-- 输入深度图像 -->
+    <remap from="depth" to="/camera_link/depth/image_raw"/>
+    <remap from="camera_info" to="/camera_link/depth/camera_info"/>
+    <!-- 输出LaserScan -->
+    <remap from="scan" to="/scan"/>
+    <!-- 参数配置 -->
+    <param name="output_frame" value="camera_link"/>
+    <param name="range_min" value="0.3"/>
+    <param name="range_max" value="3.5"/>
+    <param name="scan_time" value="0.033"/>
+    <!-- 其他参数可参考官方文档 -->
+  </node>
+
+
+  <!-- 启动rtabmap_ros-->
+  <group ns="rtabmap">
+
+    <node pkg="nodelet" type="nodelet" name="rgbd_sync" args="standalone rtabmap_sync/rgbd_sync" output="screen">
+      <remap from="rgb/image"       to="/camera_link/color/image_raw"/>
+      <remap from="depth/image"     to="/camera_link/depth/image_raw"/>
+      <remap from="rgb/camera_info" to="/camera_link/color/camera_info"/>
+      <remap from="rgbd_image"      to="rgbd_image"/> <!-- output -->
+      
+      <!-- Should be true for not synchronized camera topics 
+           (e.g., false for kinectv2, zed, realsense, true for xtion, kinect360)-->
+      <param name="approx_sync"       value="true"/> 
+    </node>
+
+    <node name="rtabmap" pkg="rtabmap_slam" type="rtabmap" output="screen" args="">
+
+        <param name="database_path" value="$(find turn_on_robot)/maps/rtabmap.db"/>
+        <param name="Mem/IncrementalMemory" type="string" value="false"/>   
+
+          <param name="frame_id" type="string" value="base_link"/>
+
+          <param name="subscribe_depth" type="bool" value="false"/>
+          <param name="subscribe_rgbd" type="bool" value="true"/>
+
+          <remap from="odom" to="/odom"/>
+
+          <remap from="rgbd_image" to="rgbd_image"/>
+
+          <param name="queue_size" type="int" value="10"/>
+
+          <!-- RTAB-Map's parameters -->
+          <param name="RGBD/AngularUpdate"        type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate"         type="string" value="0.01"/>
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="false"/>
+
+
+          <param name="camera_frame_id" type="string" value="camera_optical_frame"/> <!-- 相机光学帧 -->
+          <param name="odom_frame_id" type="string" value="odom"/>            <!-- 里程计帧 -->
+          <param name="map_frame_id" type="string" value="map"/>              <!-- 地图帧 -->
+    </node>
+  </group>
+
+  <!-- 3. 地图服务器（2D地图导航用） -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find turn_on_robot)/maps/rtabmap.yaml" output="screen"/>
+
+
+  <!-- 4. move_base导航 -->
+  <node name="move_base" pkg="move_base" type="move_base" output="screen">
+    <rosparam file="$(find turn_on_robot)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find turn_on_robot)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find turn_on_robot)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find turn_on_robot)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find turn_on_robot)/param/base_local_planner_params.yaml" command="load" />
+  </node>
+
+   <!-- 5. 可选：rviz可视化 -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find turn_on_robot)/rviz/rtabmap_mapping.rviz"/>
+
+</launch>

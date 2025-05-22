@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<robot name="my_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="body_length" value="0.4"/>
+  <xacro:property name="body_width"  value="0.3"/>
+  <xacro:property name="body_height" value="0.5"/>
+  <xacro:property name="wheel_radius" value="0.05"/>
+  <xacro:property name="wheel_length" value="0.05"/>
+  <xacro:property name="wheel_y_offset" value="${body_width/2}"/>
+  <xacro:property name="wheel_x_offset" value="${body_length/2}"/>
+  <xacro:property name="wheel_z" value="${-body_height/2}"/>
+
+  <!-- Materials for visualization -->
+  <material name="orange">
+    <color rgba="1 0.5 0 1"/>
+  </material>
+  <material name="black">
+    <color rgba="0 0 0 1"/>
+  </material>
+  <material name="blue">
+    <color rgba="0 0 1 1"/>
+  </material>
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.25" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.3 0.5"/>
+      </geometry>
+      <material name="orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.25" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.3 0.5"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="10"/>
+      <inertia ixx="0.416667" ixy="0" ixz="0" iyy="0.533333" iyz="0" izz="0.416667"/>
+    </inertial>
+  </link>
+
+  <!-- Wheel Macro -->
+  <xacro:macro name="wheel" params="name parent xyz">
+    <link name="${name}_wheel">
+      <visual>
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="0.05" length="0.05"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="0.05" length="0.05"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.5"/>
+        <inertia ixx="0.00052" ixy="0" ixz="0" iyy="0.00052" iyz="0" izz="0.001"/>
+      </inertial>
+    </link>
+    
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="${parent}"/>
+      <child link="${name}_wheel"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+
+    <gazebo reference="${name}_wheel">
+      <material>Gazebo/Black</material>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Create Wheels -->
+  <xacro:wheel name="front_left" parent="base_link" xyz="0.15 0.15 0.05"/>
+  <xacro:wheel name="front_right" parent="base_link" xyz="0.15 -0.15 0.05"/>
+  <xacro:wheel name="rear_left" parent="base_link" xyz="-0.15 0.15 0.05"/>
+  <xacro:wheel name="rear_right" parent="base_link" xyz="-0.15 -0.15 0.05"/>
+
+  <!-- RGBD Camera -->
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.05 0.05 0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.2 0 0.25" rpy="0 0 0"/>
+  </joint>
+
+  <link name="imu_link">
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.02"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Gazebo plugins：差速驱动 -->
+  <gazebo>
+    <plugin name="skid_steer_drive_controller" filename="libgazebo_ros_skid_steer_drive.so">
+      <updateRate>100.0</updateRate>
+      <leftFrontJoint>front_left_wheel_joint</leftFrontJoint>
+      <rightFrontJoint>front_right_wheel_joint</rightFrontJoint>
+      <leftRearJoint>rear_left_wheel_joint</leftRearJoint>
+      <rightRearJoint>rear_right_wheel_joint</rightRearJoint>
+      <wheelSeparation>0.25</wheelSeparation>
+      <wheelDiameter>${wheel_radius*2}</wheelDiameter>
+      <robotBaseFrame>base_footprint</robotBaseFrame>
+      <torque>20</torque>
+      <topicName>cmd_vel</topicName>
+      <broadcastTF>true</broadcastTF>
+    </plugin>
+  </gazebo>
+
+  <!-- Gazebo 插件：IMU -->
+<gazebo reference="imu_link">
+    <gravity>true</gravity>
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+      <topic>__default_topic__</topic>
+      <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+        <topicName>imu/data</topicName>
+        <bodyName>imu_link</bodyName>
+        <updateRateHZ>10.0</updateRateHZ>
+        <gaussianNoise>0.0</gaussianNoise>
+        <xyzOffset>0 0 0</xyzOffset>
+        <rpyOffset>0 0 0</rpyOffset>
+        <frameName>imu_link</frameName>
+        <initialOrientationAsReference>false</initialOrientationAsReference>
+      </plugin>
+      <pose>0 0 0 0 0 0</pose>
+    </sensor>
+  </gazebo>
+
+  <!-- Gazebo 插件：深度相机 -->
+<xacro:property name="camera_name" value="camera_link"/>
+
+<gazebo reference="camera_link">
+  <sensor name="rgbd_camera" type="depth">
+    <update_rate>20</update_rate>
+    <camera>
+      <horizontal_fov>1.047198</horizontal_fov>
+      <image>
+        <width>640</width>
+        <height>480</height>
+        <format>R8G8B8</format>
+      </image>
+      <clip>
+        <near>0.05</near>
+        <far>3</far>
+      </clip>
+    </camera>
+    <plugin name="depth_controller" filename="libgazebo_ros_openni_kinect.so">
+      <baseline>0.2</baseline>
+      <alwaysOn>true</alwaysOn>
+      <updateRate>20</updateRate>
+      <cameraName>${camera_name}_ir</cameraName>
+      <imageTopicName>/${camera_name}/color/image_raw</imageTopicName>
+      <cameraInfoTopicName>/${camera_name}/color/camera_info</cameraInfoTopicName>
+      <depthImageTopicName>/${camera_name}/depth/image_raw</depthImageTopicName>
+      <depthImageInfoTopicName>/${camera_name}/depth/camera_info</depthImageInfoTopicName>
+      <pointCloudTopicName>/${camera_name}/depth/points</pointCloudTopicName>
+      <frameName>camera_link</frameName>
+      <pointCloudCutoff>0.5</pointCloudCutoff>
+      <pointCloudCutoffMax>3.0</pointCloudCutoffMax>
+      <distortionK1>0.00000001</distortionK1>
+      <distortionK2>0.00000001</distortionK2>
+      <distortionK3>0.00000001</distortionK3>
+      <distortionT1>0.00000001</distortionT1>
+      <distortionT2>0.00000001</distortionT2>
+      <CxPrime>0</CxPrime>
+      <Cx>0</Cx>
+      <Cy>0</Cy>
+      <focalLength>0</focalLength>
+      <hackBaseline>0</hackBaseline>
+    </plugin>
+  </sensor>
+</gazebo>
+
+
+</robot>

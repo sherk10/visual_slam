@@ -1,0 +1,14 @@
+<launch>
+    
+    <include file="$(find turn_on_robot)/launch/display_in_canteen.launch" />
+
+    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" >
+        <!---<param name="maxUrange" value="3.0" /> -->
+    </node>
+
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find slam_pkg)/rviz/gmapping.rviz" />
+    <!-- args="-d $(find slam_pkg)/rviz/gmapping.rviz" -->
+    <!-- control robot -->
+    <node pkg="wpr_simulation" type="keyboard_vel_ctrl" name="keyboard_vel_ctrl" />
+     
+</launch>
